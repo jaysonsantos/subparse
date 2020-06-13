@@ -8,6 +8,7 @@ pub mod microdvd;
 pub mod srt;
 pub mod ssa;
 pub mod vobsub;
+pub mod vtt;
 
 use crate::errors::*;
 use crate::SubtitleEntry;
@@ -32,6 +33,9 @@ pub enum SubtitleFormat {
 
     /// .sub file (`MicroDVD`/text)
     MicroDVD,
+
+    /// .vtt file
+    Vtt,
 }
 
 #[derive(Clone, Debug)]
@@ -51,6 +55,9 @@ pub enum SubtitleFile {
 
     /// .sub file (`MicroDVD`/text)
     MicroDVDFile(microdvd::MdvdFile),
+
+    /// .vtt file
+    VttFile(vtt::VttFile),
 }
 
 impl SubtitleFile {
@@ -62,6 +69,7 @@ impl SubtitleFile {
             SubtitleFile::VobSubIdxFile(f) => f.get_subtitle_entries(),
             SubtitleFile::VobSubSubFile(f) => f.get_subtitle_entries(),
             SubtitleFile::MicroDVDFile(f) => f.get_subtitle_entries(),
+            SubtitleFile::VttFile(f) => f.get_subtitle_entries(),
         }
     }
 
@@ -83,6 +91,7 @@ impl SubtitleFile {
             SubtitleFile::VobSubIdxFile(f) => f.update_subtitle_entries(i),
             SubtitleFile::VobSubSubFile(f) => f.update_subtitle_entries(i),
             SubtitleFile::MicroDVDFile(f) => f.update_subtitle_entries(i),
+            SubtitleFile::VttFile(f) => f.update_subtitle_entries(i),
         }
     }
 
@@ -95,6 +104,7 @@ impl SubtitleFile {
             SubtitleFile::VobSubIdxFile(f) => f.to_data(),
             SubtitleFile::VobSubSubFile(f) => f.to_data(),
             SubtitleFile::MicroDVDFile(f) => f.to_data(),
+            SubtitleFile::VttFile(f) => f.to_data(),
         }
     }
 }
@@ -129,6 +139,12 @@ impl From<microdvd::MdvdFile> for SubtitleFile {
     }
 }
 
+impl From<vtt::VttFile> for SubtitleFile {
+    fn from(f: vtt::VttFile) -> SubtitleFile {
+        SubtitleFile::VttFile(f)
+    }
+}
+
 impl SubtitleFormat {
     /// Get a descriptive string for the format like `".srt (SubRip)"`.
     pub fn get_name(&self) -> &'static str {
@@ -138,6 +154,7 @@ impl SubtitleFormat {
             SubtitleFormat::VobSubIdx => ".idx (VobSub)",
             SubtitleFormat::VobSubSub => ".sub (VobSub)",
             SubtitleFormat::MicroDVD => ".sub (MicroDVD)",
+            SubtitleFormat::Vtt => ".vtt (WebVTT)",
         }
     }
 }
@@ -167,6 +184,8 @@ pub fn get_subtitle_format_by_extension(extension: Option<&OsStr>) -> Option<Sub
         Some(SubtitleFormat::SubStationAlpha)
     } else if _ext_opt == Some(OsStr::new("idx")) {
         Some(SubtitleFormat::VobSubIdx)
+    } else if _ext_opt == Some(OsStr::new("vtt")) {
+        Some(SubtitleFormat::Vtt)
     } else {
         None
     }
@@ -182,6 +201,7 @@ pub fn is_valid_extension_for_subtitle_format(extension: Option<&OsStr>, format:
         SubtitleFormat::VobSubIdx => extension == Some(OsStr::new("idx")),
         SubtitleFormat::VobSubSub => extension == Some(OsStr::new("sub")),
         SubtitleFormat::MicroDVD => extension == Some(OsStr::new("sub")),
+        SubtitleFormat::Vtt => extension == Some(OsStr::new("vtt")),
     }
 }
 
@@ -239,6 +259,7 @@ pub fn parse_str(format: SubtitleFormat, content: &str, fps: f64) -> Result<Subt
         SubtitleFormat::VobSubIdx => Ok(idx::IdxFile::parse(content)?.into()),
         SubtitleFormat::VobSubSub => Err(ErrorKind::TextFormatOnly.into()),
         SubtitleFormat::MicroDVD => Ok(microdvd::MdvdFile::parse(content, fps)?.into()),
+        SubtitleFormat::Vtt => Ok(vtt::VttFile::parse(content)?.into()),
     }
 }
 
@@ -273,5 +294,6 @@ pub fn parse_bytes(format: SubtitleFormat, content: &[u8], encoding: &'static En
         SubtitleFormat::VobSubIdx => Ok(idx::IdxFile::parse(&decode_bytes_to_string(content, encoding)?)?.into()),
         SubtitleFormat::VobSubSub => Ok(vobsub::VobFile::parse(content)?.into()),
         SubtitleFormat::MicroDVD => Ok(microdvd::MdvdFile::parse(&decode_bytes_to_string(content, encoding)?, fps)?.into()),
+        SubtitleFormat::Vtt => Ok(vtt::VttFile::parse(&decode_bytes_to_string(content, encoding)?)?.into()),
     }
 }
